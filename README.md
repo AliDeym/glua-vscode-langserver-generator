@@ -19,7 +19,7 @@ You may build the [Lua Language Server](https://marketplace.visualstudio.com/ite
 3. Run `gmod-wiki-scrapper` in your command-line and wait for the process to finish downloading files.
 4. Rename `output` directory to `input`, and move it to your cloned directory (Same level as `Cargo.toml`).
 5. Run the program: 
-`cargo run`
+<br />`cargo run`
 6. Copy and replace the generated folders inside `data` folder, into language server:
-`{vscode user directory}/extensions/sumneko.lua-0.xx.x/server/`
+<br />`{vscode user directory}/extensions/sumneko.lua-0.xx.x/server/`
 7. Start Visual Studio, and try all the GLua docs in your intellisense.
