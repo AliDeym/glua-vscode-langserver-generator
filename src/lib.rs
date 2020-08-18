@@ -1,4 +1,9 @@
+pub const NEWLINE_CHAR: &str = "\\r\\n";
 
+/// Parse a description in config (.lni) format friendly.
+pub fn parse_description(content: &str) -> String {
+    content.replace("'", "\\'").replace("\n", NEWLINE_CHAR)
+}
 
 pub struct GData {
     pub name: String,
@@ -11,7 +16,8 @@ pub trait Generable {
 }
 
 pub trait ClassGenerable : Generable {
-    fn generate_header(&self, buffer: &mut String);
+    fn generate_libheader(&self, buffer: &mut String);
+    fn generate_classheader(&self, buffer: &mut String);
 }
 
 pub trait DocGenerable {
@@ -74,16 +80,9 @@ pub struct GLib {
     pub funcs: Vec<GFunc>,
 }
 
-pub struct GClass {
-    pub data: GData,
-    pub funcs: Vec<GFunc>,
-}
-
 impl Generable for GLib {
     fn generate(&self) -> String {
         let mut gen = String::new();
-
-        self.generate_header(&mut gen);
 
         
         for e in self.funcs.iter() {
@@ -97,7 +96,20 @@ impl Generable for GLib {
 }
 
 impl ClassGenerable for GLib {
-    fn generate_header(&self, gen: &mut String) {
+    fn generate_classheader(&self, gen: &mut String) {
+        let formatted_name = format!("name = '{}'\n", self.data.name);
+
+        gen.push_str("<default>\n");
+        gen.push_str("type = 'function'\n");
+        gen.push_str("parent = {\n");
+        gen.push_str("\t1 = {\n");
+        gen.push_str("\t\ttype = 'object',\n\t\t");
+        gen.push_str(&formatted_name);
+        gen.push_str("\t},\n");
+        gen.push_str("}\n\n");
+    }
+
+    fn generate_libheader(&self, gen: &mut String) {
         let formatted_name = format!("name = '{}'\n", self.data.name);
 
         gen.push_str(&format!("[{}]\n", self.data.name));
@@ -114,14 +126,15 @@ impl ClassGenerable for GLib {
         gen.push_str("\t\ttype = 'global',\n\t\t");
         gen.push_str(&formatted_name);
         gen.push_str("\t},\n");
-        gen.push_str("\t\t2 = {\n");
+        gen.push_str("\t2 = {\n");
         gen.push_str("\t\ttype = 'library',\n\t\t");
         gen.push_str(&formatted_name);
-        gen.push_str("\t},\n");
+        gen.push_str("\t}\n");
         gen.push_str("}\n\n");
     }
 }
 
+// Unused.
 impl DocGenerable for GLib {
     fn generate(&self) -> String {
         let mut gen = String::new();
@@ -131,38 +144,5 @@ impl DocGenerable for GLib {
         }
 
         gen
-    }
-}
-
-
-impl Generable for GClass {
-    fn generate(&self) -> String {
-        let mut gen = String::new();
-
-        self.generate_header(&mut gen);
-
-        
-        for e in self.funcs.iter() {
-            gen.push_str(&e.generate());
-
-            gen.push_str("\n");
-        }
-
-        gen
-    }
-}
-
-impl ClassGenerable for GClass {
-    fn generate_header(&self, gen: &mut String) {
-        let formatted_name = format!("name = '{}'\n", self.data.name);
-
-        gen.push_str("<default>\n");
-        gen.push_str("type = 'function'\n");
-        gen.push_str("parent = {\n");
-        gen.push_str("\t1 = {\n");
-        gen.push_str("\t\ttype = 'object',\n\t\t");
-        gen.push_str(&formatted_name);
-        gen.push_str("\t},\n");
-        gen.push_str("}\n\n");
     }
 }

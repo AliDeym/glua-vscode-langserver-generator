@@ -16,7 +16,7 @@ fn create_ok_dir(dir: &str) {
     }
 }
 
-fn gen_lib(filename: &str) {
+fn gen(filename: &str, h_func: fn(&GLib, &mut String)) {
     println!("Generating '{}'...", filename);
 
     let content = fs::read_to_string(filename).expect(&format!("File '{}' does not exist, quitting.", filename));
@@ -30,7 +30,7 @@ fn gen_lib(filename: &str) {
 
         
         let name = String::from(obj.get("name").unwrap().as_str().unwrap());
-        let descr = String::from(obj.get("description").unwrap().as_str().unwrap());
+        let descr = parse_description(obj.get("description").unwrap_or(&Value::Null).as_str().unwrap_or(""));
 
         let mut lib = GLib {
             data: GData {
@@ -40,6 +40,10 @@ fn gen_lib(filename: &str) {
             },
             funcs: Vec::new()
         };
+
+        if !obj.contains_key("functions") {
+            continue; // Empty class or library found; skip.
+        }
 
         let funcs = obj.get("functions").unwrap().as_array().unwrap();
 
@@ -53,10 +57,10 @@ fn gen_lib(filename: &str) {
             for realm in realms {
                 let r = realm.as_str().unwrap();
 
-                if r == "client" {
+                if r.to_lowercase() == "client" {
                     flag |= 2;
                 }
-                if r == "server" {
+                if r.to_lowercase() == "server" {
                     flag |= 4;
                 }
             }
@@ -66,20 +70,34 @@ fn gen_lib(filename: &str) {
             let mut r_type = String::new();
             let mut m_args = Vec::new();
 
-            if flag & 2 == 2 && flag & 4 == 4 {
-                descr.push_str("SH|");
-            } else if flag & 4 == 4 {
-                descr.push_str("S|");
-            } else {
-                descr.push_str("C|");
-            }
+            
 
             if let Some(v) = f_obj.get("description") {
-                descr.push_str(v.as_str().unwrap());
+                descr.push_str(&parse_description(v.as_str().unwrap()));
+            }
+            
+            
+            if let Some(v) = f_obj.get("returnValues") {
+                let rtn_obj = v.as_array().unwrap().first().unwrap().as_object().unwrap();
+
+                r_type.push_str(rtn_obj.get("type").unwrap_or(&Value::Null).as_str().unwrap_or("nil"));
+
+                // Adding return info to description is very useful.
+                if let Some(return_descr) = rtn_obj.get("description") {
+                    descr.push_str(&format!("{0}{0}**Returns:** ", NEWLINE_CHAR));
+                    descr.push_str(&parse_description(return_descr.as_str().unwrap_or("")));
+                }
             }
 
-            if let Some(v) = f_obj.get("returnValues") {
-                r_type.push_str(v.as_array().unwrap().first().unwrap().as_object().unwrap().get("type").unwrap().as_str().unwrap());
+            // Define the scope of method.
+            descr.push_str(&format!("{0}{0}**Scope:** ", NEWLINE_CHAR));
+            
+            if flag & 2 == 2 && flag & 4 == 4 {
+                descr.push_str("Shared");
+            } else if flag & 4 == 4 {
+                descr.push_str("Server");
+            } else {
+                descr.push_str("Client");
             }
 
             if let Some(v) = f_obj.get("arguments") {
@@ -92,7 +110,7 @@ fn gen_lib(filename: &str) {
                         data: GData {
                             name: String::from(arg["name"].as_str().unwrap()),
                             t_type: String::from(arg["type"].as_str().unwrap()),
-                            descr: String::from(arg.get("description").unwrap_or(&serde_json::Value::Null).as_str().unwrap_or(""))
+                            descr: parse_description(arg.get("description").unwrap_or(&serde_json::Value::Null).as_str().unwrap_or(""))
                         }
                     };
 
@@ -112,7 +130,10 @@ fn gen_lib(filename: &str) {
             lib.funcs.push(g_func);
         }
 
-        let l_output = glib::Generable::generate(&lib);
+        let mut l_output = String::new();
+        h_func(&lib, &mut l_output); // Dynamic function call.
+
+        l_output.push_str(&glib::Generable::generate(&lib));
 
         let mut f = fs::File::create(&format!("{}/{}.lni", LIBS, lib.data.name)).unwrap();
 
@@ -122,8 +143,12 @@ fn gen_lib(filename: &str) {
     println!("Generating '{}' done.\n", filename);
 }
 
-fn gen_class(val: &Value) {
+fn gen_lib(filename: &str) {
+    gen(filename, GLib::generate_libheader);
+}
 
+fn gen_class(filename: &str) {
+    gen(filename, GLib::generate_classheader);
 }
 
 fn main() {
@@ -134,6 +159,7 @@ fn main() {
     println!("\n\nGenerating...\n\n");
 
     gen_lib("input/libraries.json");
+    gen_class("input/classes.json");
 
 
 }
