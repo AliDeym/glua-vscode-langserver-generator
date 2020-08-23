@@ -16,6 +16,7 @@ pub trait Generable {
 }
 
 pub trait ClassGenerable : Generable {
+    fn generate_globalheader(&self, gen: &mut String);
     fn generate_libheader(&self, buffer: &mut String);
     fn generate_classheader(&self, buffer: &mut String);
 }
@@ -31,8 +32,12 @@ pub struct GParam {
 impl Generable for GParam {
     fn generate(&self) -> String {
         let mut gen = String::new();
-
-        gen.push_str(&format!("name = '{}'\ntype = '{}'\ndescription = '{}'", self.data.name, self.data.t_type, self.data.descr));
+        
+        if !self.data.name.is_empty() {
+            gen.push_str(&format!("name = '{}'\ntype = '{}'\ndescription = '{}'", self.data.name, self.data.t_type, self.data.descr));
+        } else {
+            gen.push_str(&format!("type = '{}'", self.data.t_type))
+        }
 
         gen
     }
@@ -96,11 +101,18 @@ impl Generable for GLib {
 }
 
 impl ClassGenerable for GLib {
+    fn generate_globalheader(&self, gen: &mut String) {
+        gen.push_str("<default>\n");
+        gen.push_str("type = 'function'\n\n");
+        gen.push_str("[arg]\n");
+        gen.push_str("type = 'table'\n\n");
+    }
+
     fn generate_classheader(&self, gen: &mut String) {
         let formatted_name = format!("name = '{}'\n", self.data.name);
 
         gen.push_str("<default>\n");
-        gen.push_str("type = 'function'\n");
+        gen.push_str("type = 'function'\n\n");
         gen.push_str("parent = {\n");
         gen.push_str("\t1 = {\n");
         gen.push_str("\t\ttype = 'object',\n\t\t");

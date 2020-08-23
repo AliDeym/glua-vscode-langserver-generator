@@ -6,7 +6,7 @@ Generates Intellisense documentations for Garry's mod in [VSCode's lua language 
   
 
  - [x] Libraries
- - [ ] Globals
+ - [x] Globals
  - [x] Objects
  - [ ] Panels
  - [ ] Enums
@@ -21,5 +21,5 @@ You may build the [Lua Language Server](https://marketplace.visualstudio.com/ite
 5. Run the program: 
 `cargo run`
 6. Copy and replace the generated folders inside `data` folder, into language server:
-`{vscode user directory}/extensions/sumneko.lua-0.xx.x/server/`
+  `{vscode user directory}/extensions/sumneko.lua-0.xx.x/server/`
 7. Start Visual Studio, and try all the GLua docs in your intellisense.
