@@ -226,7 +226,7 @@ fn gen(filename: &str, h_func: fn(&GLib, &mut String), is_class: bool) {
     }
 
     println!("Generating '{}' done.\n", filename);
-    if !is_class { return; }
+    if is_class { return; }
 
     // Generating the highlight files.
     let mut filename = String::from(filename.split("/").last().unwrap());
@@ -247,6 +247,8 @@ fn gen(filename: &str, h_func: fn(&GLib, &mut String), is_class: bool) {
         let mp: Vec<String> = lib.funcs.into_iter().map(|x| x.data.name).collect();
         
         pre_str.push_str(&mp.join("|"));
+
+        pre_str.push_str(")");
     }
 
     pre_str.push_str(r#")\\b"#);
