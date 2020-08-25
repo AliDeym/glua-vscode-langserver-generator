@@ -6,6 +6,7 @@ use std::collections::{HashMap};
 
 use glib::*;
 
+const REGEX_FOLDER: &str = "data";
 const DOCS: &str = "data/locale/en-US/libs/@lua";
 const LIBS: &str = "data/libs/@lua";
 
@@ -141,6 +142,28 @@ fn gen_globals(filename: &str) {
     f.write_all(l_output.as_bytes()).unwrap();
 
     println!("Generating '{}' done.\n", filename);
+
+    // Generating the highlight files.
+    let mut filename = String::from(filename.split("/").last().unwrap());
+    filename.push_str(".regex");
+
+    println!("Generating '{}'...", filename);
+    
+    let mut pre_str = String::from(r#"(?<![^.]\\.|:)\\b(false|nil|true|_ENV|_G|_VERSION"#);
+
+    // consuming is safe, we no longer need glib.
+    for val in glib.funcs {
+        pre_str.push_str("|");
+        pre_str.push_str(&val.data.name);
+    }
+
+    pre_str.push_str(r#"\\b|(?<![.])\\.{3}(?!\\.)"#);
+
+    let mut f = fs::File::create(&format!("{}/{}", REGEX_FOLDER, filename)).unwrap();
+
+    f.write_all(pre_str.as_bytes()).unwrap();
+
+    println!("Generating '{}' done.\n", filename);
 }
 
 fn gen(filename: &str, h_func: fn(&GLib, &mut String), is_class: bool) {
@@ -151,6 +174,8 @@ fn gen(filename: &str, h_func: fn(&GLib, &mut String), is_class: bool) {
     let json: Value = serde_json::from_str(&content).expect(&format!("File '{}' may be corrupt. exiting.", filename));
 
     let arr = json.as_array().unwrap();
+
+    let mut lib_list = Vec::<GLib>::new();
 
     for val in arr {
         let obj = val.as_object().unwrap();
@@ -195,8 +220,40 @@ fn gen(filename: &str, h_func: fn(&GLib, &mut String), is_class: bool) {
 
         let mut f = fs::File::create(&format!("{}/{}.lni", LIBS, lib.data.name)).unwrap();
 
+        lib_list.push(lib);
+
         f.write_all(l_output.as_bytes()).unwrap();
     }
+
+    println!("Generating '{}' done.\n", filename);
+    if !is_class { return; }
+
+    // Generating the highlight files.
+    let mut filename = String::from(filename.split("/").last().unwrap());
+    filename.push_str(".regex");
+
+    println!("Generating '{}'...", filename);
+    
+    let mut pre_str = String::from(r#"\\b("#);
+
+    for (i, lib) in lib_list.into_iter().enumerate() {
+        if i > 0 {
+            pre_str.push_str("|");
+        }
+
+        pre_str.push_str(&lib.data.name);
+        pre_str.push_str(r#"\\.("#);
+
+        let mp: Vec<String> = lib.funcs.into_iter().map(|x| x.data.name).collect();
+        
+        pre_str.push_str(&mp.join("|"));
+    }
+
+    pre_str.push_str(r#")\\b"#);
+
+    let mut f = fs::File::create(&format!("{}/{}", REGEX_FOLDER, filename)).unwrap();
+
+    f.write_all(pre_str.as_bytes()).unwrap();
 
     println!("Generating '{}' done.\n", filename);
 }
@@ -221,4 +278,5 @@ fn main() {
     gen_globals("input/global-functions.json");
 
 
+    println!("\n\nFinished!");
 }
