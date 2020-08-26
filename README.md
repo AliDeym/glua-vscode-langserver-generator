@@ -9,7 +9,7 @@ Generates Intellisense documentations for Garry's mod in [VSCode's lua language 
  - [x] Globals
  - [x] Objects
  - [ ] Panels
- - [ ] Enums
+ - [x] Enums (**partial support:** only variables are inclued as globals in code completion, no suggestions based on methods.)
 
 ## Steps to Produce
 You may build the [Lua Language Server](https://marketplace.visualstudio.com/items?itemName=sumneko.lua) without installing it, and include the generated language files into your Language Server. However, there is no difference since the language server is not compiled, rather bundled with the extension.

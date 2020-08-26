@@ -8,14 +8,14 @@ pub fn parse_description(content: &str) -> String {
 pub struct GData {
     pub name: String,
     pub t_type: String,
-    pub descr: String
+    pub descr: String,
 }
 
 pub trait Generable {
     fn generate(&self) -> String;
 }
 
-pub trait ClassGenerable : Generable {
+pub trait ClassGenerable: Generable {
     fn generate_globalheader(&self, gen: &mut String);
     fn generate_libheader(&self, buffer: &mut String);
     fn generate_classheader(&self, buffer: &mut String);
@@ -26,15 +26,18 @@ pub trait DocGenerable {
 }
 
 pub struct GParam {
-    pub data: GData
+    pub data: GData,
 }
 
 impl Generable for GParam {
     fn generate(&self) -> String {
         let mut gen = String::new();
-        
+
         if !self.data.name.is_empty() {
-            gen.push_str(&format!("name = '{}'\ntype = '{}'\ndescription = '{}'", self.data.name, self.data.t_type, self.data.descr));
+            gen.push_str(&format!(
+                "name = '{}'\ntype = '{}'\ndescription = '{}'",
+                self.data.name, self.data.t_type, self.data.descr
+            ));
         } else {
             gen.push_str(&format!("type = '{}'", self.data.t_type))
         }
@@ -48,17 +51,18 @@ pub struct GFunc {
     pub params: Vec<GParam>,
 }
 
-
 impl Generable for GFunc {
     fn generate(&self) -> String {
         let mut gen = String::new();
 
-        gen.push_str(&format!("[{}]\ndescription = '{}'\n", self.data.name, self.data.descr));
-        
-        if self.params.len() > 0 {
+        gen.push_str(&format!(
+            "[{}]\ndescription = '{}'\n",
+            self.data.name, self.data.descr
+        ));
 
+        if self.params.len() > 0 {
             gen.push_str("[[.args]]\n");
-        
+
             for (i, e) in self.params.iter().enumerate() {
                 if i >= 1 {
                     gen.push_str("``````````\n");
@@ -79,7 +83,6 @@ impl Generable for GFunc {
     }
 }
 
-
 pub struct GLib {
     pub data: GData,
     pub funcs: Vec<GFunc>,
@@ -89,7 +92,6 @@ impl Generable for GLib {
     fn generate(&self) -> String {
         let mut gen = String::new();
 
-        
         for e in self.funcs.iter() {
             gen.push_str(&e.generate());
 
@@ -152,7 +154,10 @@ impl DocGenerable for GLib {
         let mut gen = String::new();
 
         for e in self.funcs.iter() {
-            gen.push_str(&format!("[{}]\ndescription = '{}'\n\n", e.data.name, e.data.descr));
+            gen.push_str(&format!(
+                "[{}]\ndescription = '{}'\n\n",
+                e.data.name, e.data.descr
+            ));
         }
 
         gen
