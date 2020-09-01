@@ -364,6 +364,135 @@ fn gen_enums(filename: &str) {
     println!("Generating '{}' done.\n", filename);
 }
 
+fn gen_hooks(filename: &str) {
+    println!("Generating '{}'...", filename);
+
+    let content = fs::read_to_string(filename)
+        .expect(&format!("File '{}' does not exist, quitting.", filename));
+
+    let json: Value = serde_json::from_str(&content)
+        .expect(&format!("File '{}' may be corrupt. exiting.", filename));
+
+    let arr = json.as_array().unwrap();
+
+    let mut content = String::new();
+
+    for val in arr {
+        let header_hook = val.as_object().unwrap();
+
+        let funcs = header_hook.get("functions").unwrap().as_array().unwrap();
+
+        for rawhook in funcs {
+            let hook = rawhook.as_object().unwrap();
+            let hook_name = hook.get("name").unwrap().as_str().unwrap();
+
+            // Header of functions.
+            content.push_str(&format!(
+                "[{}]\ntype = 'interface'\n",
+                hook_name
+            ));
+
+            // Scopes.
+            let realms = hook.get("realms").unwrap().as_array().unwrap();
+
+            let mut flag = 0;
+
+            for realm in realms {
+                let r = realm.as_str().unwrap();
+
+                if r.to_lowercase() == "client" {
+                    flag |= 2;
+                }
+                if r.to_lowercase() == "server" {
+                    flag |= 4;
+                }
+            }
+
+            let mut scope = String::new();
+
+            if flag & 2 == 2 && flag & 4 == 4 {
+                scope.push_str("Shared");
+            } else if flag & 4 == 4 {
+                scope.push_str("Server");
+            } else {
+                scope.push_str("Client");
+            }
+
+            let mut description = parse_description(
+                hook
+                    .get("description")
+                    .unwrap_or(&Value::Null)
+                    .as_str()
+                    .unwrap_or(""),
+            );
+
+            let mut comments = None;
+            let mut call_args = None;
+
+            // Prepare types in description.
+            if let Some(args) = hook.get("arguments") {
+                description.push_str(NEWLINE_CHAR);
+                description.push_str("```lua\\r");
+
+                let args = args.as_array().unwrap();
+
+                comments = Some(String::new());
+                call_args = Some(String::new());
+
+                for (i, arg) in args.iter().enumerate() {
+                    let arg = arg.as_object().unwrap();
+
+                    let name = arg.get("name").unwrap().as_str().unwrap();
+                    let t_type = arg.get("type").unwrap_or(&Value::Null).as_str().unwrap_or("any");
+                    
+                    let mut c = comments.take().unwrap();
+                    let mut c_args = call_args.take().unwrap();
+
+                    if i > 0 {
+                        c.push_str("\\n");
+                        c_args.push_str(", ");
+                    }
+                    c.push_str(&format!("---@param {} {}", name, t_type));
+                    c_args.push_str(name);
+
+                    comments = Some(c);
+                    call_args = Some(c_args);
+                    
+                    description.push_str(name);
+                    description.push_str(": ");
+                    description.push_str(t_type);
+                    description.push_str(NEWLINE_CHAR);
+
+                    if let Some(arg_info) = arg.get("description") {
+                        description.push_str(&format!("--{}{}", parse_description(arg_info.as_str().unwrap()), NEWLINE_CHAR));
+                    }
+                }
+
+                description.push_str("```");
+            }
+
+            // Define the scope of enum.
+            description.push_str(&format!("{0}{0}**Scope:** {1}", NEWLINE_CHAR, scope));
+
+            content.push_str(&format!("description = '{}'\n", description));
+
+            if let Some(comments) = comments {
+               content.push_str(&format!("comments = '{}'\n", comments));
+            }
+            
+            content.push_str(&format!("customsnip = 'Add(\"{}\", \"${{1:name}}\", function({})\\n\\t$0\\nend)'\n\n", hook_name, call_args.unwrap_or(String::from(""))));
+            
+        }
+    }
+
+
+    let mut f = fs::File::create(&format!("{}/hooks_generated.lni", LIBS)).unwrap();
+
+    f.write_all(content.as_bytes()).unwrap();
+
+    println!("Generating '{}' done.\n", filename);
+}
+
 fn main() {
     create_ok_dir(LIBS);
     create_ok_dir(ENUMS);
@@ -374,6 +503,7 @@ fn main() {
     gen_class("input/classes.json");
     gen_globals("input/global-functions.json");
     gen_enums("input/enums.json");
+    gen_hooks("input/hooks.json");
 
     println!("\n\nFinished!");
 }
